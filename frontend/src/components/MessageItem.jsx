@@ -5,7 +5,7 @@ import useLiveTimer from "../utils/hooks/useLiveTimer";
 function MessageItem({ msg }) {
   const seconds = useLiveTimer(msg?.timestamp);
 
-  if (msg?.name === "user") {
+  if (msg?.role === "user") {
     return (
       <div className="flex justify-end">
         <div className="max-w-[70%] bg-[#dddddd80] rounded-lg">
@@ -16,7 +16,7 @@ function MessageItem({ msg }) {
               className="w-[25vw] h-auto mx-auto rounded-md m-2"
             />
           )}
-          <h1 className="py-2 px-4">{msg.message}</h1>
+          <h1 className="py-2 px-4">{msg.content}</h1>
         </div>
       </div>
     );
@@ -42,10 +42,10 @@ function MessageItem({ msg }) {
       <div className="max-w-[90%] bg-[#eeeeee80] rounded-lg">
         <div className="py-2 px-4">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {msg.message}
+            {msg.content}
           </ReactMarkdown>
         </div>
-        <p className="text-xs text-gray-500 px-4 pb-1">Response in {seconds}s</p>
+        {seconds===NaN && <p className="text-xs text-gray-500 px-4 pb-1">Response in {seconds || 0}s</p>}
       </div>
     </div>
   );

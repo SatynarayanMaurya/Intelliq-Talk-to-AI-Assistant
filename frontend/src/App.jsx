@@ -2,12 +2,14 @@ import {Route,Routes} from "react-router-dom"
 import HomePage from "./pages/HomePage";
 import NewChat from "./pages/NewChat";
 import DefaultPage from "./components/DefaultPage";
+import Auth from "./pages/Auth";
 
 function App() {
   return (
     <div >
 
       <Routes>
+        <Route path="/auth" element={<Auth/>}/>
         <Route path="/" element={<HomePage/>}>
           <Route path="/" element={<DefaultPage/>}/>
           <Route path="/:id" element={<NewChat/>}/>

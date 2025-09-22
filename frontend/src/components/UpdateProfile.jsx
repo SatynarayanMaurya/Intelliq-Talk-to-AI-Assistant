@@ -1,9 +1,42 @@
 import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import { setLoading } from "../redux/slices/userSlice";
+import { apiConnector } from "../services/apiConnector";
+import { userEndpoints } from "../services/apis";
 
 function UpdateProfile({closeModal}) {
-  const [updatedName, setUpdatedName] = useState(localStorage.getItem("name") || "Lawrence Cruz");
+  const userDetails = useSelector((state)=>state.user.userDetails)
+  const dispatch = useDispatch();
+  const [updatedName, setUpdatedName] = useState(userDetails?.name || "Lawrence Cruz");
+  const token = localStorage.getItem("token")
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
+    try{
+      if(!token){
+        toast.warn("You are not registered with us")
+        closeModal();
+        return;
+      }
+      if(updatedName === userDetails?.name){
+        closeModal();
+        return;
+      }
+      if(!updatedName?.trim()){
+        toast.warn("Provide a name")
+        return ;
+      }
+      dispatch(setLoading(true))
+      const result = await apiConnector("PUT",userEndpoints.UPDATE_PROFILE,{name:updatedName})
+      toast.success(result?.data?.message)
+      dispatch(setLoading(false))
+      closeModal()
+    }
+    catch(error){
+      dispatch(setLoading(false))
+      console.log("Error in updating the user details : ",error)
+      toast.error(error?.response?.data?.message || error.message || "Error in updating the user details")
+    }
     e.preventDefault();
     localStorage.setItem("name",updatedName)
     closeModal();

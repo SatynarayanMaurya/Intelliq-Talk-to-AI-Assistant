@@ -3,21 +3,23 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { askGemini } from "../api/gemini";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { addMessage, setMessages } from "../redux/slices/historySlice";
 import MessageItem from "../components/MessageItem";
+import { apiConnector } from "../services/apiConnector";
+import { askGeminiEndpoints } from "../services/apis";
 
 
 export default function NewChat() {
 
-  const { id: chatId } = useParams(); // chatId from URL
+  const { id: chatId } = useParams(); 
   const navigate = useNavigate()
   const location = useLocation()
   const isCollapsed = useSelector((state)=>state.history.isCollapsed)
   const dispatch = useDispatch()
   const [inputText, setInputText] = useState("");
-  const messageHistory = useSelector((state) => state.history.messageHistory[chatId]) || [];
+  const messageHistory = useSelector((state) => state.history.allMessages?.[chatId]) || [];
+
   const {initialMessage,file} = location?.state || {};
   const [selectedFile,setSelectedFile] = useState(null)
 
@@ -33,18 +35,26 @@ export default function NewChat() {
 
   useEffect(() => {
     if (initialMessage && !hasSentInitial.current) {
-      hasSentInitial.current = true; // mark as used
+      hasSentInitial.current = true; 
+      const formPayload= new FormData();
+      formPayload.append("prompt", initialMessage);
+      formPayload.append("chatId", chatId);
+      if (file) {
+        formPayload.append("file", file);
+      }
 
-      dispatch(addMessage({ chatId, message: { name: "user", message: initialMessage,image: file ? URL.createObjectURL(file) : null,timestamp: Date.now(),  } }));
-      dispatch(addMessage({ chatId, message: { name: "ai", message: "", loading: true,timestamp: Date.now(),  } }));
+
+      dispatch(addMessage({ chatId, message: { role: "user", content: initialMessage,image: file ? URL.createObjectURL(file) : null,timestamp: Date.now(),  } }));
+      dispatch(addMessage({ chatId, message: { role: "ai", content: "", loading: true,timestamp: Date.now(),  } }));
 
       (async () => {
-        const response = await askGemini(initialMessage,file);
+        const response = await apiConnector("POST",askGeminiEndpoints.ASK_GEMINI,formPayload,{"Content-Type":"multipart/form-data"})
+
         dispatch(setMessages({
           chatId,
           messages: [
-            { name: "user", message: initialMessage },
-            { name: "ai", message: response, loading: false }
+            { role: "user", content: initialMessage },
+            { role: "ai", content: response?.data?.data, loading: false }
           ]
         }));
       })();
@@ -53,6 +63,55 @@ export default function NewChat() {
   }, [initialMessage,file, chatId, dispatch]);
 
 
+
+
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   if (!inputText.trim() && !selectedFile) return;
+  //   if(selectedFile?.name?.split(".")?.pop() === "pdf" ){
+  //     alert("PDF File is not supported yet")
+  //     return;
+  //   }
+  //   if(selectedFile?.name?.split(".")?.pop() === "mp4" ){
+  //     alert("Video File is not supported yet")
+  //     return;
+  //   }
+
+  //   // User message with optional image
+  //   dispatch(
+  //     addMessage({
+  //       chatId,
+  //       message: {
+  //         name: "user",
+  //         message: inputText,
+  //         image: selectedFile ? URL.createObjectURL(selectedFile) : null,
+  //         timestamp: Date.now(), 
+  //       },
+  //     })
+  //   );
+
+  //   setInputText("");
+
+    
+  //   // AI placeholder
+  //   dispatch(addMessage({ chatId, message: { name: "ai", message: "", loading: true ,timestamp: Date.now(),}  }));
+    
+  //   // Fetch AI response (only send text for now since no backend)
+  //   // const response = await askGemini(inputText,selectedFile);
+  //   const response = await apiConnector("POST",askGeminiEndpoints.ASK_GEMINI,{prompt:inputText})
+  //   console.log("REsponse : ",response)
+  //   setSelectedFile(null);
+
+  //   const updated = messageHistory
+  //     .concat({
+  //       name: "user",
+  //       message: inputText,
+  //       image: selectedFile ? URL.createObjectURL(selectedFile) : null,
+  //     })
+  //     .concat({ name: "ai", message: response, loading: false });
+
+  //   dispatch(setMessages({ chatId, messages: updated }));
+  // };
 
 
   const handleSubmit = async (e) => {
@@ -66,39 +125,30 @@ export default function NewChat() {
       alert("Video File is not supported yet")
       return;
     }
+    const formPayload= new FormData();
+    formPayload.append("prompt", inputText);
+    formPayload.append("chatId", chatId);
+    if (selectedFile) {
+      formPayload.append("file", selectedFile);
+    }
 
-    // User message with optional image
-    dispatch(
-      addMessage({
-        chatId,
-        message: {
-          name: "user",
-          message: inputText,
-          image: selectedFile ? URL.createObjectURL(selectedFile) : null,
-          timestamp: Date.now(), 
-        },
-      })
-    );
 
-    setInputText("");
-
-    
-    // AI placeholder
-    dispatch(addMessage({ chatId, message: { name: "ai", message: "", loading: true ,timestamp: Date.now(),}  }));
-    
-    // Fetch AI response (only send text for now since no backend)
-    const response = await askGemini(inputText,selectedFile);
-    setSelectedFile(null);
-
+    setInputText("")
+    dispatch(addMessage({chatId,message:{role:"user",content:inputText,image: selectedFile ? URL.createObjectURL(selectedFile) : null,timestamp:Date.now()}}))
+    dispatch(addMessage({chatId,message:{role:"ai",content:"",loading:true,timestamp:Date.now()}}))
+    const response = await apiConnector("POST",askGeminiEndpoints.ASK_GEMINI,formPayload,{"Content-Type": "multipart/form-data" })
     const updated = messageHistory
       .concat({
-        name: "user",
-        message: inputText,
+        role: "user",
+        content: inputText,
         image: selectedFile ? URL.createObjectURL(selectedFile) : null,
       })
-      .concat({ name: "ai", message: response, loading: false });
+      .concat({ role: "ai", content: response?.data?.data, loading: false });
+
 
     dispatch(setMessages({ chatId, messages: updated }));
+    setSelectedFile(null)
+
   };
 
 
@@ -131,6 +181,7 @@ export default function NewChat() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
+          {!localStorage.getItem("token") &&<button onClick={()=>navigate("/auth")} className="border border-gray-400 text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium  cursor-pointer">Login</button>}
           <button onClick={()=>navigate(`/${crypto.randomUUID()}`)} className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700">
             + New Chat
           </button>

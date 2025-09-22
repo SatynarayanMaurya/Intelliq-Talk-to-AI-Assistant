@@ -10,20 +10,33 @@ export default function DefaultPage() {
     const navigate = useNavigate()
   const [inputText, setInputText] = useState("");
   const [selectedFile,setSelectedFile] = useState(null)
+  const userDetails = useSelector((state)=>state.user.userDetails)
 
   const suggestionCards = [
     {
       icon: "✨",
-      title: "Give me a concise summary of this meeting transcript"
+      title: "Tell me 5 amazing facts about the human brain"
     },
     {
       icon: "✨", 
-      title: "Write a product description for a minimalist smartwatch"
+      title: "Give me tips to improve my time management"
     },
     {
       icon: "✨",
-      title: "Provide a polite response to a customer asking for a refund"
-    }
+      title: "Generate 5 startup ideas in the eLearning industry"
+    },
+    {
+      icon: "✨",
+      title: "Give me a 5-minute morning workout plan"
+    },
+    {
+      icon: "✨",
+      title: "How to stay consistent while learning a new skill?"
+    },
+    {
+      icon: "✨",
+      title: "Write a funny shayri about my best friend in hindi"
+    },
   ];
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -73,6 +86,7 @@ export default function DefaultPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
+          {!localStorage.getItem("token") &&<button onClick={()=>navigate("/auth")} className="border border-gray-400 text-gray-700 px-3 py-1.5 rounded-md text-sm font-medium  cursor-pointer">Login</button>}
           <button onClick={()=>navigate(`/${generateId()}`)} className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700">
             + New Chat
           </button>
@@ -85,7 +99,7 @@ export default function DefaultPage() {
           {/* Greeting */}
           <div className="mb-4  flex gap-2 items-center">
             <span className="text-2xl">👋</span>
-            <h1 className="text-xl font-bold text-gray-800 mt-2">Hi {localStorage?.getItem("name") || "Laurence!"}</h1>
+            <h1 className="text-xl font-bold text-gray-800 mt-2">Hi {userDetails?.name || "Laurence!"}</h1>
           </div>
           
           {/* Main Question */}
@@ -94,14 +108,14 @@ export default function DefaultPage() {
           </h2>
           
           {/* Suggestion Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 lg:mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 lg:mb-12">
             {suggestionCards.map((card, index) => (
               <div
                 key={index}
                 onClick={()=>cardClick(card.title)}
                 className="bg-gradient-to-r from-[#F8F9FC] via-[#FFDDF8]/30 to-[#D9E4FF]/40 border border-gray-200 rounded-lg lg:p-6 p-4 text-left hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
               >
-                <div className="text-blue-500 text-lg lg:mb-20">{card.icon}</div>
+                <div className="text-blue-500 text-lg lg:mb-5">{card.icon}</div>
                 <p className="text-gray-700 text-sm leading-relaxed">{card.title}</p>
               </div>
             ))}

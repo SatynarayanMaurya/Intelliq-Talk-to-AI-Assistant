@@ -2,16 +2,22 @@
 import { Search, Home, BookOpen, Clock, Compass, Plus, User, Zap,ChevronRight,ChevronLeft,Trash2  } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { clearChat, setIsCollapse } from "../redux/slices/historySlice";
+import { clearAllMessage, clearChat, setIsCollapse } from "../redux/slices/historySlice";
 import { useNavigate } from "react-router-dom";
 import UpdateProfile from "./UpdateProfile";
+import {toast} from "react-toastify"
+import { setLoading } from "../redux/slices/userSlice";
+import { apiConnector } from "../services/apiConnector";
+import { chatEndpoints } from "../services/apis";
 
 const Sidebar = ({}) => {
   const dispatch = useDispatch();
   const navigate = useNavigate()
+  const userDetails = useSelector((state)=>state.user.userDetails)
   const isCollapsed = useSelector((state)=>state.history.isCollapsed)
   const [selectedItem, setSelectedItem] = useState("home");
   const [chatHistory,setChatHistory] = useState([])
+  const [isLogout,setIsLogout] = useState(false)
 
   const [searchChat , setSearchChat] = useState("")
 
@@ -22,26 +28,38 @@ const Sidebar = ({}) => {
     { id: "explore", icon: Compass, label: "Explore", shortcut: "⌘L" }
   ];
 
-  const totalHistory = useSelector((state) => state.history.messageHistory);
+  const allMessages = useSelector((state)=>state.history.allMessages)
 
   const filterHistory = () => {
-    if (!searchChat.trim()) return Object.entries(totalHistory);
+    if (!searchChat?.trim()) return Object.entries(allMessages);
 
-    return Object.entries(totalHistory).filter(([chatId, messages]) =>
-      messages.some((msg) =>
-        msg.message.toLowerCase().includes(searchChat.toLowerCase())
+    return Object.entries(allMessages).filter(([_, content]) =>
+      content.some((msg) =>
+        msg.content.toLowerCase().includes(searchChat.toLowerCase())
       )
     );
   };
+
 
   useEffect(()=>{
     const response = filterHistory();
     setChatHistory(response?.reverse())
 
-  },[searchChat,totalHistory])
+  },[searchChat,allMessages])
 
-  const deleteChat = (chatId)=>{
-    dispatch(clearChat(chatId))
+  const deleteChat = async(chatId)=>{
+    try{
+      dispatch(setLoading(true))
+      const result = await apiConnector("PUT",chatEndpoints.DELETE_CHAT,{chatId})
+      toast.success(result?.data?.message)
+      dispatch(clearChat(chatId))
+      dispatch(setLoading(false))
+    }
+    catch(error){
+      dispatch(setLoading(false))
+      toast.error(error?.response?.data?.message || error.message || "Error in deleting the chat")
+      console.log("Error in deleting the chat : ",error)
+    }
   }
 
   const [isProfileUpdate, setIsProfileUpdate] = useState(false)
@@ -124,7 +142,7 @@ const Sidebar = ({}) => {
 
                 {chatHistory?.length > 0 ?
                   chatHistory?.map(([ChatId, message]) => {
-                    const firstMessage = message?.[1]?.message || "New Chat";
+                    const firstMessage = message?.[1]?.content || "New Chat";
                     return (
                       <div
                         key={ChatId}
@@ -176,16 +194,22 @@ const Sidebar = ({}) => {
             </div>
 
             {/* User Profile */}
-            <div onClick={()=>setIsProfileUpdate(true)} className="flex items-center gap-2 cursor-pointer">
+            <div onClick={()=>setIsProfileUpdate(true)} className="flex items-center gap-2 cursor-pointer relative">
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-gray-600" />
               </div>
-              <span className="text-sm font-medium text-gray-900 flex-1">{localStorage?.getItem("name")?.slice(0,18) || "Lawrence Cruz"}</span>
-              <button className="text-gray-400 hover:text-gray-600">
+              <span className="text-sm font-medium text-gray-900 flex-1">{userDetails?.name|| "Lawrence Cruz"}</span>
+              <button onClick={(e)=>{e.stopPropagation();setIsLogout(!isLogout)}} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                 </svg>
               </button>
+              {
+                isLogout &&
+                <div className="absolute -right-20 z-100 bottom-6 bg-red-500 text-white font-semibold border border-gray-300 px-4 py-2 rounded-lg ">
+                  Logout
+                </div>
+              }
             </div>
           </>
         ) : (

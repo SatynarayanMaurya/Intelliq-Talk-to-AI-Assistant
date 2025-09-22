@@ -4,7 +4,9 @@ import { loadChatHistory } from "../../utils/localStorage";
 
 const initialState = {
   isCollapsed: window.innerWidth < 768,
-  messageHistory:loadChatHistory() // store chats as { chatId: [messages] }
+  messageHistory:{},
+
+  allMessages : {}
 };
 
 const historySlice = createSlice({
@@ -17,23 +19,30 @@ const historySlice = createSlice({
     },
     addMessage: (state, action) => {
       const { chatId, message } = action.payload;
-      if (!state.messageHistory[chatId]) {
-        state.messageHistory[chatId] = []; 
+      if (!state.allMessages[chatId]) {
+        state.allMessages[chatId] = []; 
       }
-      state.messageHistory[chatId].push(message);
+      state.allMessages[chatId].push(message);
     },
     setMessages: (state, action) => {
       const { chatId, messages } = action.payload;
-      state.messageHistory[chatId] = messages;
+      state.allMessages[chatId] = messages;
     },
     clearChat: (state, action) => {
       const chatId = action.payload;
-      delete state.messageHistory[chatId];
+      delete state.allMessages[chatId];
     },
+
+    setMessageHistory:(state,action)=>{
+      state.allMessages = action.payload
+    },
+    clearAllMessage :(state,action)=>{
+      state.allMessages = null
+    }
   }
 });
 
-export const { setIsCollapse, addMessage, setMessages, clearChat } =
+export const { setIsCollapse, addMessage, setMessages, clearChat,setMessageHistory ,clearAllMessage} =
   historySlice.actions;
 export default historySlice.reducer;
 
