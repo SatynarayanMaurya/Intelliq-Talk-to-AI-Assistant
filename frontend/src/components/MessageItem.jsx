@@ -45,7 +45,12 @@ function MessageItem({ msg }) {
             {msg.content}
           </ReactMarkdown>
         </div>
-        {seconds===NaN && <p className="text-xs text-gray-500 px-4 pb-1">Response in {seconds || 0}s</p>}
+        {isNaN(seconds) && (
+          <p className="text-xs text-gray-500 px-4 pb-1">
+            Response in {seconds || 0}s
+          </p>
+        )}
+
       </div>
     </div>
   );

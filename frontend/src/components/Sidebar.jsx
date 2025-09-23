@@ -6,7 +6,7 @@ import { clearAllMessage, clearChat, setIsCollapse } from "../redux/slices/histo
 import { useNavigate } from "react-router-dom";
 import UpdateProfile from "./UpdateProfile";
 import {toast} from "react-toastify"
-import { setLoading } from "../redux/slices/userSlice";
+import { clearUserDetails, setLoading } from "../redux/slices/userSlice";
 import { apiConnector } from "../services/apiConnector";
 import { chatEndpoints } from "../services/apis";
 
@@ -39,6 +39,14 @@ const Sidebar = ({}) => {
       )
     );
   };
+
+  const logout = ()=>{
+    localStorage.removeItem("token")
+    toast.success("Logout Successfully")
+    setIsLogout(false)
+    dispatch(clearUserDetails())
+    dispatch(clearAllMessage())
+  }
 
 
   useEffect(()=>{
@@ -194,11 +202,11 @@ const Sidebar = ({}) => {
             </div>
 
             {/* User Profile */}
-            <div onClick={()=>setIsProfileUpdate(true)} className="flex items-center gap-2 cursor-pointer relative">
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+            <div  className="flex items-center gap-2 cursor-pointer relative">
+              <div onClick={()=>setIsProfileUpdate(true)} className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-gray-600" />
               </div>
-              <span className="text-sm font-medium text-gray-900 flex-1">{userDetails?.name|| "Lawrence Cruz"}</span>
+              <span onClick={()=>setIsProfileUpdate(true)} className="text-sm font-medium text-gray-900 flex-1">{userDetails?.name|| "Lawrence Cruz"}</span>
               <button onClick={(e)=>{e.stopPropagation();setIsLogout(!isLogout)}} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -206,7 +214,7 @@ const Sidebar = ({}) => {
               </button>
               {
                 isLogout &&
-                <div className="absolute -right-20 z-100 bottom-6 bg-red-500 text-white font-semibold border border-gray-300 px-4 py-2 rounded-lg ">
+                <div onClick={logout} className="absolute -right-20 z-100 bottom-6 bg-red-500 text-white font-semibold border border-gray-300 px-4 py-2 rounded-lg ">
                   Logout
                 </div>
               }

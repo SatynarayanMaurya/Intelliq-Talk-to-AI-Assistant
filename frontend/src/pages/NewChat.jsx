@@ -7,7 +7,8 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { addMessage, setMessages } from "../redux/slices/historySlice";
 import MessageItem from "../components/MessageItem";
 import { apiConnector } from "../services/apiConnector";
-import { askGeminiEndpoints } from "../services/apis";
+import { askGeminiEndpoints, chatEndpoints } from "../services/apis";
+import {CirclePause,Pause,Mic } from "lucide-react"
 
 
 export default function NewChat() {
@@ -19,10 +20,11 @@ export default function NewChat() {
   const dispatch = useDispatch()
   const [inputText, setInputText] = useState("");
   const messageHistory = useSelector((state) => state.history.allMessages?.[chatId]) || [];
+  const [isMicOpen, setIsMicOpen] = useState(false)
 
   const {initialMessage,file} = location?.state || {};
   const [selectedFile,setSelectedFile] = useState(null)
-
+  const recognitionRef = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -63,60 +65,12 @@ export default function NewChat() {
   }, [initialMessage,file, chatId, dispatch]);
 
 
+  
 
-
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-  //   if (!inputText.trim() && !selectedFile) return;
-  //   if(selectedFile?.name?.split(".")?.pop() === "pdf" ){
-  //     alert("PDF File is not supported yet")
-  //     return;
-  //   }
-  //   if(selectedFile?.name?.split(".")?.pop() === "mp4" ){
-  //     alert("Video File is not supported yet")
-  //     return;
-  //   }
-
-  //   // User message with optional image
-  //   dispatch(
-  //     addMessage({
-  //       chatId,
-  //       message: {
-  //         name: "user",
-  //         message: inputText,
-  //         image: selectedFile ? URL.createObjectURL(selectedFile) : null,
-  //         timestamp: Date.now(), 
-  //       },
-  //     })
-  //   );
-
-  //   setInputText("");
-
-    
-  //   // AI placeholder
-  //   dispatch(addMessage({ chatId, message: { name: "ai", message: "", loading: true ,timestamp: Date.now(),}  }));
-    
-  //   // Fetch AI response (only send text for now since no backend)
-  //   // const response = await askGemini(inputText,selectedFile);
-  //   const response = await apiConnector("POST",askGeminiEndpoints.ASK_GEMINI,{prompt:inputText})
-  //   console.log("REsponse : ",response)
-  //   setSelectedFile(null);
-
-  //   const updated = messageHistory
-  //     .concat({
-  //       name: "user",
-  //       message: inputText,
-  //       image: selectedFile ? URL.createObjectURL(selectedFile) : null,
-  //     })
-  //     .concat({ name: "ai", message: response, loading: false });
-
-  //   dispatch(setMessages({ chatId, messages: updated }));
-  // };
-
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e,overrideText) => {
     e.preventDefault();
-    if (!inputText.trim() && !selectedFile) return;
+    const finalText = overrideText ?? inputText;
+    if (!finalText.trim() && !selectedFile) return;
     if(selectedFile?.name?.split(".")?.pop() === "pdf" ){
       alert("PDF File is not supported yet")
       return;
@@ -125,16 +79,22 @@ export default function NewChat() {
       alert("Video File is not supported yet")
       return;
     }
+
     const formPayload= new FormData();
-    formPayload.append("prompt", inputText);
+    formPayload.append("prompt", finalText);
     formPayload.append("chatId", chatId);
     if (selectedFile) {
       formPayload.append("file", selectedFile);
     }
 
+    
+
+    // for (let [key, value] of formPayload.entries()) {
+    //   console.log(key, value);
+    // }
 
     setInputText("")
-    dispatch(addMessage({chatId,message:{role:"user",content:inputText,image: selectedFile ? URL.createObjectURL(selectedFile) : null,timestamp:Date.now()}}))
+    dispatch(addMessage({chatId,message:{role:"user",content:finalText,image: selectedFile ? URL.createObjectURL(selectedFile) : null,timestamp:Date.now()}}))
     dispatch(addMessage({chatId,message:{role:"ai",content:"",loading:true,timestamp:Date.now()}}))
     const response = await apiConnector("POST",askGeminiEndpoints.ASK_GEMINI,formPayload,{"Content-Type": "multipart/form-data" })
     const updated = messageHistory
@@ -154,6 +114,56 @@ export default function NewChat() {
 
 
 
+  const startListening = () => {
+    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+      alert("Your browser does not support speech recognition.");
+      return;
+    }
+    setIsMicOpen(true)
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.lang = "en-US";
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = true;
+
+    recognitionRef.current.onresult = (event) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInputText(transcript);
+      recognitionRef.current.finalTranscript = transcript;
+    };
+
+    
+    recognitionRef.current.onspeechend = () => {
+      setIsMicOpen(false)
+      handleSubmit({preventDefault:()=>{}},recognitionRef.current.finalTranscript)
+      recognitionRef.current.stop();
+    };
+
+    recognitionRef.current.onerror = (event) => {
+      if (event.error === "network") {
+        console.warn("Network error: Check internet or HTTPS setup.");
+      } else {
+        console.error("Speech recognition error:", event.error);
+      }
+      setIsMicOpen(false)
+    };
+
+
+    recognitionRef.current.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsMicOpen(false)
+  };
 
 
   return (
@@ -189,51 +199,13 @@ export default function NewChat() {
       </div>
 
       {/* Main Content */}
-      <div className={`pt-4 pb-12  ${isCollapsed ? "w-[90%] lg:w-[62%]":"w-[90%] lg:w-[71%]"}  mx-auto h-[75vh] overflow-y-scroll`}>
+      <div className={`pt-4 pb-12  ${isCollapsed ? "w-[90%] lg:w-[62%]":"w-[90%] lg:w-[71%]"} px-4 mx-auto h-[75vh] overflow-y-scroll`}>
 
         <div className="flex flex-col gap-4">
-
-          {/* {messageHistory?.map((msg, index) =>{
-            return  (
-              <div key={index}>
-              {msg?.name === "user" ? (
-                <div className="flex justify-end">
-                  <div className="max-w-[70%] bg-[#dddddd80] rounded-lg">
-                    {msg.image && (
-                      <img src={msg.image} alt="uploaded" className="w-[25vw] h-auto mx-auto rounded-md m-2" />
-                    )}
-                    <h1 className="py-2 px-4">{msg.message}</h1>
-                  </div>
-                </div>
-              ) : msg?.loading ? (
-                <div className="flex justify-start">
-                  <div className="rounded-lg">
-                    <img
-                      src="https://static.wixstatic.com/media/68315b_30dbad1140034a3da3c59278654e1655~mv2.gif"
-                      className="w-[3vw] ml-4"
-                      alt="loading"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-start">
-                  <div className="max-w-[90%] bg-[#eeeeee80] rounded-lg">
-                    <div className="py-2 px-4">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.message}</ReactMarkdown>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )})} */}
 
           {messageHistory?.map((msg, index) => (
             <MessageItem key={index} msg={msg} />
           ))}
-
-
-
-
 
           <div ref={messagesEndRef} />
 
@@ -255,6 +227,13 @@ export default function NewChat() {
             
             {/* Input Actions */}
             <div className={`absolute bottom-3  left-3 flex items-center space-x-2`}>
+              <div className="text-gray-400 mr-3">
+                {
+                  !isMicOpen ?
+                  <button onClick={startListening} className="hover:text-gray-600 cursor-pointer"><Mic  size={16}/></button>:
+                  <button onClick={stopListening} className="hover:text-gray-600 cursor-pointer"><Pause size={15}/></button>
+                }
+              </div>
               <label htmlFor="fileUpload" className="cursor-pointer">
                   <svg className="w-4 h-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
