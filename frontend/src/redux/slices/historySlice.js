@@ -37,7 +37,7 @@ const historySlice = createSlice({
       state.allMessages = action.payload
     },
     clearAllMessage :(state,action)=>{
-      state.allMessages = null
+      state.allMessages = {}
     }
   }
 });
